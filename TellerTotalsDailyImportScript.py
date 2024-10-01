@@ -114,11 +114,14 @@ class db:
         )
         return result.rowcount
 
+success = False
 def main():
     # Path to the directory containing the teller transactions file
     
+    filestoarchive=[]
     Path1 = "\\\\kfcu\\share\\PR\\MIS\\OperationsArea\\TellerTotals\\"
     for filename in glob.glob(os.path.join(Path1,'*.txt')):
+        success=False
         rows = []
          # Verify path and file exist, read file into list
         with open(filename,'r') as file:
@@ -152,7 +155,8 @@ def main():
                         break
                 else:
                      # Commit the transaction if all records are inserted successfully
-                    trans.commit() 
+                    trans.commit()
+                    success=True 
                     #log success
                     filestoarchive.append(file.name)
                     logger.info("Succesfully imported " + str(file) + "  ProcessDate = " + str(processdate))
@@ -160,8 +164,32 @@ def main():
             except Exception as e:
                 trans.rollback()  # Rollback the transaction in case of an exception
                 logger.exception(f"Transaction failed: {e}")
+    
+    
+    if success:
+        # Move the file to an archive directory
+        SourceDir = Path("\\\\kfcu\\share\\PR\\MIS\\OperationsArea\\TellerTotals\\")
+        ArchiveDir =Path("\\\\kfcu\\share\\PR\\MIS\\Business Intelligence\\Data Archive\\TellerTotals\\")
+        max_files = 180  # Maximum number of files to keep in the archive
 
-filestoarchive=[]
+        # Ensure the archive directory exists
+        os.makedirs(ArchiveDir, exist_ok=True)
+
+        # Move each file from the source to the archive directory
+        for filename in filestoarchive:
+            filename=Path(filename)
+            source_file = os.path.join(SourceDir, filename.name)
+            destination_file = os.path.join(ArchiveDir, filename.name)
+            shutil.move(source_file, destination_file)
+
+        # Get a list of files in the archive directory sorted by modification time
+        files_in_archive = sorted(Path(ArchiveDir).iterdir(), key=os.path.getmtime)
+
+        # Remove the oldest files if the number of files exceeds the maximum limit
+        while len(files_in_archive) > max_files:
+            oldest_file = files_in_archive.pop(0)
+            os.remove(oldest_file)    
+
 
 if __name__ == "__main__":
  
@@ -172,25 +200,25 @@ if __name__ == "__main__":
         else:
             logger.exception(e)
 
-  # Move the file to an archive directory
-    SourceDir = Path("\\\\kfcu\\share\\PR\\MIS\\OperationsArea\\TellerTotals\\")
-    ArchiveDir =Path("\\\\kfcu\\share\\PR\\MIS\\Business Intelligence\\Data Archive\\TellerTotals\\")
-    max_files = 180  # Maximum number of files to keep in the archive
+#   # Move the file to an archive directory
+#     SourceDir = Path("\\\\kfcu\\share\\PR\\MIS\\OperationsArea\\TellerTotals\\")
+#     ArchiveDir =Path("\\\\kfcu\\share\\PR\\MIS\\Business Intelligence\\Data Archive\\TellerTotals\\")
+#     max_files = 180  # Maximum number of files to keep in the archive
 
-    # Ensure the archive directory exists
-    os.makedirs(ArchiveDir, exist_ok=True)
+#     # Ensure the archive directory exists
+#     os.makedirs(ArchiveDir, exist_ok=True)
 
-    # Move each file from the source to the archive directory
-    for filename in filestoarchive:
-        filename=Path(filename)
-        source_file = os.path.join(SourceDir, filename.name)
-        destination_file = os.path.join(ArchiveDir, filename.name)
-        shutil.move(source_file, destination_file)
+#     # Move each file from the source to the archive directory
+#     for filename in filestoarchive:
+#         filename=Path(filename)
+#         source_file = os.path.join(SourceDir, filename.name)
+#         destination_file = os.path.join(ArchiveDir, filename.name)
+#         shutil.move(source_file, destination_file)
 
-    # Get a list of files in the archive directory sorted by modification time
-    files_in_archive = sorted(Path(ArchiveDir).iterdir(), key=os.path.getmtime)
+#     # Get a list of files in the archive directory sorted by modification time
+#     files_in_archive = sorted(Path(ArchiveDir).iterdir(), key=os.path.getmtime)
 
-    # Remove the oldest files if the number of files exceeds the maximum limit
-    while len(files_in_archive) > max_files:
-        oldest_file = files_in_archive.pop(0)
-        os.remove(oldest_file)
+#     # Remove the oldest files if the number of files exceeds the maximum limit
+#     while len(files_in_archive) > max_files:
+#         oldest_file = files_in_archive.pop(0)
+#         os.remove(oldest_file)
